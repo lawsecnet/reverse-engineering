@@ -9,7 +9,7 @@ class debugger():
 
     def load(self, path_to_file):
         # dwCreation flag determines how to create process
-        creation_flag = DEBUG_PROCESS
+        creation_flags = DEBUG_PROCESS
 
         # initationg the structs
         startupinfo = STARTUPINFO()
@@ -22,7 +22,7 @@ class debugger():
         # initiazlizing cb variable in the STARTUPINFO struct
         startupinfo.cb = sizeof(startupinfo)
 
-        if kernel32.CreateProcessA(path_to_exe, None, None, None, None,
+        if kernel32.CreateProcessA(path_to_file, None, None, None, None,
         creation_flags, None, None, byref(startupinfo), byref(process_information)):
 
             print "Process launch successfull !!!"
