@@ -9,6 +9,8 @@ class debugger():
         self.h_process = None
         self.pid = None
         self.debugger_active = False
+        self.h_thread = None
+        self.context  = None
 
     def load(self, path_to_file):
         # dwCreation flag determines how to create process
@@ -67,12 +69,13 @@ class debugger():
 
         if kernel32.WaitForDebugEVENT(bref(debug_event), INFINITE):
 
-            # event handlers will be added later
-            # resume process as place holder
-            raw_input("Press any key to continue...")
-            self.debugger_active = False
-            kernel32.ContinueDebugEvent(debug_event.dwProcessId,
-            debug_event.dwThreadId, continue_status)
+            # obtain thread and context information
+            self.h_thread = self.open_thread(debug_event.dwThreadId)
+            self.context = self.get_thread_context(self.h_thread)
+
+                print "Event Code: %d Thread ID: %d" % (debug_event.dwDebugEventCode, debug_event.dwThreadId)
+
+            kernel32.ContinueDebugEvent(debug_event.dwProcessId, debug_event.dwThreadId, continue_status)
 
     def detach(self):
 
