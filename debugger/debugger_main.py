@@ -82,3 +82,45 @@ class debugger():
         else:
             print "Error occured"
             return False
+
+
+    def open_thread (self, thread_id):
+
+        h_thread = kernel32.OpenThread(THREAD_ALL_ACCESS, None, thread_id)
+
+        if h_thread is not None:
+            return h_thread
+
+        else:
+            print "[8] Could not obtain a valid thread handle"
+            return False
+
+        def enumerate_threads(self):
+
+            thread_entry = THREADENTRY32()
+
+            thread_list = []
+                snapshot = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, self.pid)
+
+            if snapshot is not None:
+                # setting size of struct
+                thread_entry.dwSize = sizeof(thread_entry)
+                    success = kernel32.Thread32First(snapshot, byref(thread_entry))
+
+                kernel32.CloseHandle(snapshot)
+                return thread_list
+            else:
+                return False
+
+        def get_thread_context (self, thread_id):
+
+            context = CONTEXT()
+            context.ContextFlags = CONTEXT_FULL | CONTEXT_DEBUG_REGISTERS
+
+            # Obtain a handle to the thread_id
+            h_thread = self.open_thread(thread_id)
+            if kernel32.GetThreadContext(h_thread, byref(context)):
+                kernel32.CloseHandle(h_thread)
+                return context
+            else:
+                return False
