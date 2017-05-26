@@ -12,8 +12,8 @@ class debugger():
         self.h_thread = None
         self.context  = None
         self.breakpoints = {}
-        self.exception = None
-        self.exception_address = None
+        self.first_breakpoint = True
+        self.harware_breakpoints = {}
 
     def load(self, path_to_file):
         # dwCreation flag determines how to create process
@@ -217,3 +217,60 @@ class debugger():
         kernel32.CloseHandle(handle)
 
         return address
+
+    def bp_set_hw(self, address, length, condition):
+
+        # check for valid length value
+        if length not in (1, 2, 4):
+            return False
+        else:
+            length -= 1
+
+        # check for valid confition
+        if condition not in (HW_ACCESS, HW_EXECUTE, HW_WRITE):
+            return False
+
+        # check for available slots
+        if not self.harware_breakpoints.has_key(0):
+            available = 0
+        elif not self.harware_breakpoints.has_key(1):
+            available = 1
+        elif not self.harware_breakpoints.has_key(2):
+            available = 2
+        elif not self.harware_breakpoints.has_key(3):
+            available = 3
+        else:
+            return False
+
+        # we want to set the debug register in every thread
+        for thread_id in self.enumerate_threads():
+            context = self.get_thread_context(thread_id = thread_id)
+
+            # enable the appropriate flag in the DR7
+            # register to set the breakpoints
+            context.Dr7 |= 1 << (available * 2)
+
+        # save the address of thebreakpoint in the free register found
+        if available == 0:
+            context.Dr0 = address
+        elif available == 1:
+            context.Dr1 = address
+        elif available == 2:
+            context.Dr2 = address
+        elif available == 3:
+            context.Dr3 = address
+
+        # set the breakpoint condition
+        context.Dr7 |= condition << ((available * 4) + 16)
+
+        # set the length
+        context.Dr7 |= << ((available * 4) + 18)
+
+        # set thread context with the break set
+        h_thread = self.open_thread(thread_id)
+        kernel32.SetThreadContext(h_thread, byref(context))
+
+        # update the internal hardware breakpoint array at the used slot index
+            self.harware_breakpoints[available] = (address, length, condition)
+
+            return True
