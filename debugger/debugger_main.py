@@ -15,6 +15,14 @@ class debugger():
         self.first_breakpoint = True
         self.hardware_breakpoints = {}
 
+        # determines and stores dedault page size for the system
+        system_info = SYSTEM_INFO()
+        kernel32.GetSystemInfo(byref(system_info))
+        self.page_size = system_info.dwPageSize
+
+        self.guarded_pages = []
+        self.memory_breakpoints = {}
+
     def load(self, path_to_file):
         # dwCreation flag determines how to create process
         creation_flags = DEBUG_PROCESS
@@ -346,5 +354,35 @@ class debugger():
 
         # remove breakpoint from internal list
         del self.hardware_breakpoints[slot]
+
+        return True
+
+    def bp_set_mem(self, address, size):
+
+        mbi = MEMORY_BASIC_INFORMATION()
+
+        # if VirtualQueryEx() call doesnt reurin full sized memory basic information
+        # return False
+        if kernel32.VirtualQueryEx(self.h_process, address, byref(mbi), sizeof(mbi)) < sizeof(mbi):
+            return False
+
+        current_page = mbi.BaseAddress
+
+        # set permissions on all pages that are affected by our breakpoint
+        while current_page <= address + size:
+
+            # add the page to the list, which will differentiate guarded pages
+            # from those setup by the OS or debugee process
+            self.guarded_pages.append(current_page)
+
+            old_protection = c_ulong(0)
+            if not kernel32.VirtualProtectEx(self.h_process, current_page, size, mbi.Protect | PAGE_GUARD, byref(old_protection)):
+                return False
+
+            # increase range by the size of teh default system memory page size
+            current_page += self.page_size
+
+        # add the memory breakpoint to global list
+        self.memory_breakpoints[address] = (address, size, mbi)
 
         return True
